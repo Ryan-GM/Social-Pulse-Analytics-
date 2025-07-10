@@ -1,0 +1,110 @@
+Request
+Project Goal:
+I want a full-featured Social Media Analytics Dashboard that allows me to track, analyze, and visualize performance across platforms like Instagram, Twitter/X, TikTok, and Facebook.
+
+✅ Key Features I Need:
+Multi-Platform Analytics
+
+Connect to APIs of Instagram, Twitter/X, TikTok, and Facebook.
+
+Fetch basic metrics:
+
+Followers/Following
+
+Engagement Rate (likes, comments, shares)
+
+Reach & Impressions
+
+Post Frequency
+
+Audience Demographics (if available)
+
+Dashboard Overview (All Accounts Combined)
+
+Total Followers
+
+Total Engagement Rate
+
+Total Impressions
+
+Trend Graph (Follower growth over time)
+
+Individual Account Analytics (Per Platform)
+
+Detailed breakdown for each platform.
+
+Visualize metrics with graphs/charts.
+
+Filter by:
+
+Last 7 Days
+
+Last 30 Days
+
+Custom Date Range
+
+Post Performance Tracker
+
+List top-performing posts per platform.
+
+Show:
+
+Engagements per post
+
+Impressions per post
+
+Posting time & date
+
+Sort posts by performance.
+
+Reports
+
+Exportable reports (PDF or CSV).
+
+Weekly/Monthly summaries.
+
+Include visual charts in exports.
+
+User-Friendly & Mobile-Responsive UI
+
+Easy to navigate dashboard.
+
+Clean, modern design (dark mode preferred).
+
+Mobile-friendly for on-the-go access.
+
+Security
+
+Secure OAuth login for connecting social media accounts.
+
+User Authentication (Username + Password or OAuth Google Login).
+
+Data encryption & privacy-safe storage.
+
+✅ Technical Stack Preferences:
+Frontend: React / Next.js / Vite (Fast & Modern)
+
+Backend: Node.js (Express) or Serverless (Optional)
+
+Database: PostgreSQL, MongoDB, or Supabase (for storing analytics data)
+
+Charts: Recharts, Chart.js, or similar
+
+Authentication: OAuth2 (for social APIs), Auth Providers (Supabase Auth, Clerk, etc.)
+
+✅ My Priorities:
+Simplicity & Visual Clarity (No bloated dashboards)
+
+Automation (Auto-fetch data daily or weekly)
+
+Fast Performance
+
+Scalability (I might want to track more platforms later)
+
+✅ Bonus (Optional)
+Email summaries of weekly analytics.
+
+Keyword / Hashtag analysis.
+
+Predictive analytics using AI (for future content planning).
+
