@@ -1,7 +1,8 @@
-import { Bell, User } from "lucide-react";
+import { Bell, User, Settings } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Link } from "wouter";
 
 interface HeaderProps {
   dateRange: string;
@@ -31,6 +32,12 @@ export function Header({ dateRange, setDateRange }: HeaderProps) {
           <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white">
             <Bell className="h-5 w-5" />
           </Button>
+          
+          <Link href="/settings">
+            <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white">
+              <Settings className="h-5 w-5" />
+            </Button>
+          </Link>
           
           <Avatar className="h-8 w-8">
             <AvatarFallback className="bg-blue-600 text-white">

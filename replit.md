@@ -45,6 +45,9 @@ Preferred communication style: Simple, everyday language.
 - `/api/dashboard/platform-distribution` - Platform-wise breakdown
 - `/api/dashboard/top-posts` - Best performing posts
 - `/api/reports/generate` - Custom report generation
+- `/api/reports/:id/export` - Export reports in PDF, CSV, or JSON format
+- `/api/social-accounts` - Manage social media account connections
+- `/api/user/settings` - User settings and preferences management
 
 ### UI Components
 - **Dashboard Overview**: Real-time metrics cards with trend indicators
@@ -79,6 +82,11 @@ Preferred communication style: Simple, everyday language.
 - **Tailwind CSS**: Utility-first CSS framework
 - **Lucide React**: Icon library
 - **Recharts**: Chart and graph visualization
+
+### Report Generation
+- **PDF Export**: Text-based PDF reports with comprehensive analytics
+- **CSV Export**: Structured data export for spreadsheet analysis
+- **JSON Export**: Raw data export for custom processing
 
 ## Deployment Strategy
 

@@ -6,19 +6,28 @@ export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
+  email: text("email"),
+  reportFrequency: text("report_frequency").default("weekly"), // daily, weekly, manual
+  reportFormat: text("report_format").default("pdf"), // pdf, csv
+  reportEmail: text("report_email"),
+  autoSyncInterval: integer("auto_sync_interval").default(24), // hours
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export const socialAccounts = pgTable("social_accounts", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").references(() => users.id),
-  platform: text("platform").notNull(), // instagram, twitter, tiktok, facebook
+  platform: text("platform").notNull(), // instagram, twitter, tiktok, facebook, youtube
   accountId: text("account_id").notNull(),
   username: text("username").notNull(),
   accessToken: text("access_token"),
   refreshToken: text("refresh_token"),
+  tokenExpiry: timestamp("token_expiry"),
   isActive: boolean("is_active").default(true),
+  lastSync: timestamp("last_sync"),
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export const platformMetrics = pgTable("platform_metrics", {

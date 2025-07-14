@@ -13,15 +13,16 @@ export function ExportReports() {
 
   const generateReportMutation = useMutation({
     mutationFn: async (reportType: string) => {
-      const response = await apiRequest("POST", "/api/reports/generate", {
-        reportType,
-        title: `${reportType} Analytics Report`,
-        dateRange: {
-          start: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-          end: new Date().toISOString(),
-        },
+      return apiRequest("/api/reports/generate", {
+        method: "POST",
+        body: JSON.stringify({
+          reportType,
+          dateRange: {
+            start: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+            end: new Date().toISOString(),
+          },
+        }),
       });
-      return response.json();
     },
     onSuccess: () => {
       toast({
@@ -30,10 +31,10 @@ export function ExportReports() {
       });
       queryClient.invalidateQueries({ queryKey: ["/api/reports"] });
     },
-    onError: () => {
+    onError: (error) => {
       toast({
         title: "Error",
-        description: "Failed to generate report. Please try again.",
+        description: error.message || "Failed to generate report. Please try again.",
         variant: "destructive",
       });
     },
@@ -42,22 +43,55 @@ export function ExportReports() {
   const handleGenerateReport = async (reportType: string) => {
     setIsGenerating(true);
     try {
-      await generateReportMutation.mutateAsync(reportType);
+      const report = await generateReportMutation.mutateAsync(reportType);
+      // Auto-download the PDF report
+      await handleDownload(report.id, 'pdf');
     } finally {
       setIsGenerating(false);
     }
   };
 
-  const handleExportCSV = () => {
-    // In a real app, this would trigger CSV export
-    toast({
-      title: "Export Started",
-      description: "Your CSV export is being prepared.",
-    });
+  const handleDownload = async (reportId: number, format: string) => {
+    try {
+      const response = await fetch(`/api/reports/${reportId}/export?format=${format}`);
+      if (!response.ok) {
+        throw new Error('Failed to download report');
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `report-${reportId}.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      
+      toast({
+        title: "Download Complete",
+        description: `Report downloaded as ${format.toUpperCase()} file.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Download Error",
+        description: "Failed to download report. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleExportCSV = async () => {
+    setIsGenerating(true);
+    try {
+      const report = await generateReportMutation.mutateAsync("overview");
+      await handleDownload(report.id, 'csv');
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handleScheduleReport = () => {
-    // In a real app, this would open a scheduling modal
     toast({
       title: "Schedule Report",
       description: "Report scheduling feature coming soon.",
@@ -82,11 +116,12 @@ export function ExportReports() {
           
           <Button
             onClick={handleExportCSV}
+            disabled={isGenerating}
             variant="outline"
             className="w-full border-slate-600 text-slate-200 hover:bg-slate-800"
           >
             <Download className="mr-2 h-4 w-4" />
-            Export CSV Data
+            {isGenerating ? "Generating..." : "Export CSV Data"}
           </Button>
           
           <Button
