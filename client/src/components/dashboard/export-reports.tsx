@@ -13,16 +13,14 @@ export function ExportReports() {
 
   const generateReportMutation = useMutation({
     mutationFn: async (reportType: string) => {
-      return apiRequest("/api/reports/generate", {
-        method: "POST",
-        body: JSON.stringify({
-          reportType,
-          dateRange: {
-            start: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-            end: new Date().toISOString(),
-          },
-        }),
+      const response = await apiRequest("POST", "/api/reports/generate", {
+        reportType,
+        dateRange: {
+          start: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+          end: new Date().toISOString(),
+        },
       });
+      return response.json();
     },
     onSuccess: () => {
       toast({
