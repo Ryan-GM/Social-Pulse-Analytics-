@@ -423,22 +423,57 @@ export class SocialMediaService {
       if (!account || !account.accessToken) {
         throw new Error('Account not found or missing access token');
       }
+
+      // Check if token is expired
+      if (account.tokenExpiry && new Date(account.tokenExpiry) < new Date()) {
+        throw new Error('Access token has expired. Please reconnect your account.');
+      }
       
-      const service = this.createPlatformService(account.platform, account.accessToken, account.refreshToken || undefined);
+      let activeService = this.createPlatformService(account.platform, account.accessToken, account.refreshToken || undefined);
       
       // Check if token is valid
-      const isValid = await service.isTokenValid();
+      const isValid = await activeService.isTokenValid();
       if (!isValid) {
-        // Try to refresh token
-        const newToken = await service.refreshAccessToken();
-        await storage.updateSocialAccount(accountId, {
-          accessToken: newToken,
-          lastSync: new Date(),
-        });
+        if (account.refreshToken) {
+          try {
+            // Try to refresh token
+            const newToken = await activeService.refreshAccessToken();
+            
+            // Calculate new expiry (platform specific)
+            let newExpiry = new Date();
+            switch (account.platform) {
+              case 'instagram':
+                newExpiry.setDate(newExpiry.getDate() + 60); // 60 days
+                break;
+              case 'twitter':
+                newExpiry.setHours(newExpiry.getHours() + 2); // 2 hours
+                break;
+              case 'facebook':
+                newExpiry.setDate(newExpiry.getDate() + 60); // 60 days
+                break;
+              default:
+                newExpiry.setHours(newExpiry.getHours() + 1); // 1 hour default
+            }
+            
+            await storage.updateSocialAccount(accountId, {
+              accessToken: newToken,
+              tokenExpiry: newExpiry,
+              lastSync: new Date(),
+            });
+            
+            // Create new service with updated token
+            activeService = this.createPlatformService(account.platform, newToken, account.refreshToken || undefined);
+          } catch (refreshError) {
+            console.error(`Token refresh failed for account ${accountId}:`, refreshError);
+            throw new Error('Token expired and refresh failed. Please reconnect your account.');
+          }
+        } else {
+          throw new Error('Token is invalid and no refresh token available. Please reconnect your account.');
+        }
       }
       
       // Fetch metrics
-      const metrics = await service.fetchMetrics();
+      const metrics = await activeService.fetchMetrics();
       await storage.createPlatformMetrics({
         accountId,
         platform: account.platform,
@@ -446,7 +481,7 @@ export class SocialMediaService {
       });
       
       // Fetch posts
-      const posts = await service.fetchPosts(20);
+      const posts = await activeService.fetchPosts(20);
       for (const post of posts) {
         await storage.createPost({
           accountId,

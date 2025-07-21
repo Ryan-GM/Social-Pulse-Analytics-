@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -46,6 +46,8 @@ interface SocialAccount {
   username: string;
   isActive: boolean;
   lastSync: string;
+  tokenExpiry?: string;
+  accessToken?: string;
 }
 
 const platformIcons = {
@@ -70,6 +72,59 @@ export default function Settings() {
   const [activeTab, setActiveTab] = useState("accounts");
   const [userSettings, setUserSettings] = useState<Partial<User>>({});
 
+  // Handle OAuth callback results
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const connected = urlParams.get('connected');
+    const error = urlParams.get('error');
+    const platform = urlParams.get('platform');
+    const username = urlParams.get('username');
+    const details = urlParams.get('details');
+
+    if (connected && platform) {
+      toast({
+        title: "Success!",
+        description: `Successfully connected ${platform}${username ? ` as ${decodeURIComponent(username)}` : ''}`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/social-accounts"] });
+      // Clear URL parameters
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (error && platform) {
+      let errorMessage = `Failed to connect ${platform}`;
+      
+      switch (error) {
+        case 'unsupported_platform':
+          errorMessage = `${platform} is not supported yet`;
+          break;
+        case 'oauth_init_failed':
+          errorMessage = `Failed to start ${platform} authorization. Please check your configuration.`;
+          break;
+        case 'oauth_denied':
+          errorMessage = `${platform} authorization was denied or cancelled`;
+          break;
+        case 'missing_code':
+          errorMessage = `${platform} authorization failed - no authorization code received`;
+          break;
+        case 'no_token':
+          errorMessage = `Failed to get access token from ${platform}`;
+          break;
+        case 'connection_failed':
+          errorMessage = `Failed to connect ${platform}${details ? `: ${decodeURIComponent(details)}` : ''}`;
+          break;
+        default:
+          errorMessage = `Unknown error connecting ${platform}${details ? `: ${decodeURIComponent(details)}` : ''}`;
+      }
+
+      toast({
+        title: "Connection Failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
+      // Clear URL parameters
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [toast, queryClient]);
+
   const { data: user, isLoading: userLoading } = useQuery<User>({
     queryKey: ["/api/user/settings"],
   });
@@ -80,10 +135,7 @@ export default function Settings() {
 
   const updateUserMutation = useMutation({
     mutationFn: async (updates: Partial<User>) => {
-      return apiRequest("/api/user/settings", {
-        method: "PUT",
-        body: JSON.stringify(updates),
-      });
+      return apiRequest("PUT", "/api/user/settings", updates);
     },
     onSuccess: () => {
       toast({
@@ -103,9 +155,7 @@ export default function Settings() {
 
   const syncAccountMutation = useMutation({
     mutationFn: async (accountId: number) => {
-      return apiRequest(`/api/social-accounts/${accountId}/sync`, {
-        method: "POST",
-      });
+      return apiRequest("POST", `/api/social-accounts/${accountId}/sync`);
     },
     onSuccess: () => {
       toast({
@@ -125,9 +175,7 @@ export default function Settings() {
 
   const disconnectAccountMutation = useMutation({
     mutationFn: async (accountId: number) => {
-      return apiRequest(`/api/social-accounts/${accountId}`, {
-        method: "DELETE",
-      });
+      return apiRequest("DELETE", `/api/social-accounts/${accountId}`);
     },
     onSuccess: () => {
       toast({
@@ -145,6 +193,30 @@ export default function Settings() {
     },
   });
 
+  const refreshTokenMutation = useMutation({
+    mutationFn: async (accountId: number) => {
+      const response = await apiRequest("POST", `/api/social-accounts/${accountId}/refresh-token`);
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Success",
+        description: data.message || "Token refreshed successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/social-accounts"] });
+    },
+    onError: (error: any) => {
+      const requiresReauth = error.response?.data?.requiresReauth;
+      toast({
+        title: "Token Refresh Failed",
+        description: requiresReauth 
+          ? "Please reconnect your account to continue using this service"
+          : error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleConnectPlatform = (platform: string) => {
     window.location.href = `/api/oauth/${platform}`;
   };
@@ -155,6 +227,10 @@ export default function Settings() {
 
   const handleDisconnectAccount = (accountId: number) => {
     disconnectAccountMutation.mutate(accountId);
+  };
+
+  const handleRefreshToken = (accountId: number) => {
+    refreshTokenMutation.mutate(accountId);
   };
 
   const handleUpdateSettings = () => {
@@ -228,6 +304,11 @@ export default function Settings() {
                         const Icon = platformIcons[account.platform as keyof typeof platformIcons];
                         const color = platformColors[account.platform as keyof typeof platformColors];
                         
+                        // Check if token is expired
+                        const isTokenExpired = account.tokenExpiry 
+                          ? new Date(account.tokenExpiry) < new Date() 
+                          : false;
+
                         return (
                           <div key={account.id} className="flex items-center justify-between p-4 bg-slate-700 rounded-lg">
                             <div className="flex items-center space-x-3">
@@ -237,22 +318,43 @@ export default function Settings() {
                               <div>
                                 <p className="text-white font-medium">{account.username}</p>
                                 <p className="text-slate-400 text-sm capitalize">{account.platform}</p>
+                                {account.lastSync && (
+                                  <p className="text-slate-500 text-xs">
+                                    Last sync: {new Date(account.lastSync).toLocaleDateString()}
+                                  </p>
+                                )}
+                                {isTokenExpired && (
+                                  <p className="text-red-400 text-xs">Token expired</p>
+                                )}
                               </div>
                             </div>
                             <div className="flex items-center space-x-2">
-                              <Badge variant={account.isActive ? "default" : "secondary"}>
-                                {account.isActive ? (
+                              <Badge variant={account.isActive && !isTokenExpired ? "default" : "secondary"}>
+                                {account.isActive && !isTokenExpired ? (
                                   <CheckCircle className="h-3 w-3 mr-1" />
                                 ) : (
                                   <XCircle className="h-3 w-3 mr-1" />
                                 )}
-                                {account.isActive ? "Active" : "Inactive"}
+                                {isTokenExpired ? "Expired" : (account.isActive ? "Active" : "Inactive")}
                               </Badge>
+                              
+                              {isTokenExpired && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleRefreshToken(account.id)}
+                                  disabled={refreshTokenMutation.isPending}
+                                >
+                                  <RefreshCw className="h-4 w-4 mr-1" />
+                                  Refresh
+                                </Button>
+                              )}
+                              
                               <Button
                                 variant="outline"
                                 size="sm"
                                 onClick={() => handleSyncAccount(account.id)}
-                                disabled={syncAccountMutation.isPending}
+                                disabled={syncAccountMutation.isPending || isTokenExpired}
                               >
                                 <RefreshCw className="h-4 w-4 mr-1" />
                                 Sync

@@ -47,6 +47,9 @@ Preferred communication style: Simple, everyday language.
 - `/api/reports/generate` - Custom report generation
 - `/api/reports/:id/export` - Export reports in PDF, CSV, or JSON format
 - `/api/social-accounts` - Manage social media account connections
+- `/api/oauth/:platform` - OAuth authorization for social media platforms
+- `/api/oauth/:platform/callback` - OAuth callback handling with proper error management
+- `/api/social-accounts/:id/refresh-token` - Manual token refresh for expired accounts
 - `/api/user/settings` - User settings and preferences management
 
 ### UI Components
@@ -98,7 +101,45 @@ Preferred communication style: Simple, everyday language.
 ### Environment Configuration
 - `DATABASE_URL`: PostgreSQL connection string
 - `NODE_ENV`: Environment-specific configuration
-- Platform API keys and secrets via environment variables
+- `BASE_URL`: Application base URL for OAuth callbacks
+- `INSTAGRAM_CLIENT_ID` & `INSTAGRAM_CLIENT_SECRET`: Instagram Basic Display API credentials
+- `TWITTER_CLIENT_ID` & `TWITTER_CLIENT_SECRET`: Twitter API v2 OAuth credentials
+- `FACEBOOK_CLIENT_ID` & `FACEBOOK_CLIENT_SECRET`: Facebook Graph API credentials
+- `TIKTOK_CLIENT_ID` & `TIKTOK_CLIENT_SECRET`: TikTok for Developers API credentials
+- `YOUTUBE_CLIENT_ID` & `YOUTUBE_CLIENT_SECRET`: Google/YouTube Data API credentials
+- `SESSION_SECRET`: Random string for session encryption
+
+### OAuth Integration
+
+The application includes a complete OAuth implementation for connecting social media accounts:
+
+#### ✅ Fixed OAuth Issues
+- **Real Token Exchange**: Replaced demo implementation with actual OAuth token exchange
+- **Proper Error Handling**: Clear error messages and feedback for failed connections
+- **Token Validation**: Validates tokens before API calls and handles expired tokens
+- **Automatic Token Refresh**: Attempts to refresh expired tokens using refresh tokens
+- **Secure Token Storage**: Tokens are securely stored with expiration tracking
+
+#### Supported Platforms
+- **Instagram**: Basic Display API with user profile and media access
+- **Twitter/X**: API v2 with tweet reading and user profile access
+- **Facebook**: Graph API with page engagement and content access
+- **TikTok**: For Developers API with user info and video list access
+- **YouTube**: Data API v3 with read-only channel access
+
+#### Setup Instructions
+1. Copy `.env.example` to `.env`
+2. Follow the detailed setup guide in `OAUTH_SETUP.md`
+3. Configure OAuth apps for each platform you want to support
+4. Add your client credentials to the `.env` file
+
+#### OAuth Flow
+1. User clicks "Connect Account" for a platform
+2. Redirects to platform's OAuth authorization page
+3. User grants permissions and returns to callback URL
+4. Application exchanges authorization code for access tokens
+5. Retrieves user info and stores account with tokens
+6. Provides success/error feedback to user
 
 ### Hosting Considerations
 - Frontend: Static file serving through Express
