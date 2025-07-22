@@ -5,8 +5,8 @@ import { z } from "zod";
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
-  password: text("password").notNull(),
   email: text("email"),
+  supabaseUserId: text("supabase_user_id").unique(), // Link to Supabase auth user
   reportFrequency: text("report_frequency").default("weekly"), // daily, weekly, manual
   reportFormat: text("report_format").default("pdf"), // pdf, csv
   reportEmail: text("report_email"),
@@ -70,7 +70,8 @@ export const reports = pgTable("reports", {
 
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
-  password: true,
+  email: true,
+  supabaseUserId: true,
 });
 
 export const insertSocialAccountSchema = createInsertSchema(socialAccounts).omit({
