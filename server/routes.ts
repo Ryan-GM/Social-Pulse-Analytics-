@@ -4,13 +4,102 @@ import { storage } from "./storage";
 import { SocialMediaService } from "./services/socialMediaService";
 import { ReportService } from "./services/reportService";
 import { OAuthService } from "./services/oauthService";
+import { AuthService } from "./services/authService";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Dashboard overview data
-  app.get("/api/dashboard/overview", async (req, res) => {
+  // Authentication routes
+  app.post("/api/auth/signup", async (req, res) => {
     try {
-      const userId = 1; // Demo user ID
+      const { email, password, username } = req.body;
+      
+      if (!email || !password || !username) {
+        return res.status(400).json({ error: "Email, password, and username are required" });
+      }
+
+      const result = await AuthService.signUp(email, password, username);
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/auth/signin", async (req, res) => {
+    try {
+      const { email, password } = req.body;
+      
+      if (!email || !password) {
+        return res.status(400).json({ error: "Email and password are required" });
+      }
+
+      const result = await AuthService.signIn(email, password);
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/auth/signout", async (req, res) => {
+    try {
+      const result = await AuthService.signOut();
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/auth/user", AuthService.verifyAuth, async (req, res) => {
+    try {
+      res.json({ user: req.user });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/auth/reset-password", async (req, res) => {
+    try {
+      const { email } = req.body;
+      
+      if (!email) {
+        return res.status(400).json({ error: "Email is required" });
+      }
+
+      const result = await AuthService.resetPassword(email);
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.put("/api/auth/update-password", AuthService.verifyAuth, async (req, res) => {
+    try {
+      const { newPassword } = req.body;
+      const authHeader = req.headers.authorization;
+      
+      if (!newPassword) {
+        return res.status(400).json({ error: "New password is required" });
+      }
+
+      if (!authHeader) {
+        return res.status(401).json({ error: "Authorization header required" });
+      }
+
+      const token = authHeader.substring(7);
+      const result = await AuthService.updatePassword(newPassword, token);
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Dashboard overview data
+  app.get("/api/dashboard/overview", AuthService.verifyAuth, async (req, res) => {
+    try {
+      const userId = req.user?.profile?.id;
+      if (!userId) {
+        return res.status(400).json({ error: "User not found" });
+      }
+      
       const accounts = await storage.getSocialAccounts(userId);
       
       let totalFollowers = 0;
@@ -55,9 +144,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Follower growth data
-  app.get("/api/dashboard/follower-growth", async (req, res) => {
+  app.get("/api/dashboard/follower-growth", AuthService.verifyAuth, async (req, res) => {
     try {
-      const userId = 1; // Demo user ID
+      const userId = req.user?.profile?.id;
+      if (!userId) {
+        return res.status(400).json({ error: "User not found" });
+      }
       const days = parseInt(req.query.days as string) || 7;
       const accounts = await storage.getSocialAccounts(userId);
       
@@ -94,9 +186,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Platform distribution
-  app.get("/api/dashboard/platform-distribution", async (req, res) => {
+  app.get("/api/dashboard/platform-distribution", AuthService.verifyAuth, async (req, res) => {
     try {
-      const userId = 1; // Demo user ID
+      const userId = req.user?.profile?.id;
+      if (!userId) {
+        return res.status(400).json({ error: "User not found" });
+      }
       const accounts = await storage.getSocialAccounts(userId);
       
       const distribution: { [key: string]: number } = {};
@@ -125,9 +220,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Top performing posts
-  app.get("/api/dashboard/top-posts", async (req, res) => {
+  app.get("/api/dashboard/top-posts", AuthService.verifyAuth, async (req, res) => {
     try {
-      const userId = 1; // Demo user ID
+      const userId = req.user?.profile?.id;
+      if (!userId) {
+        return res.status(400).json({ error: "User not found" });
+      }
       const limit = parseInt(req.query.limit as string) || 10;
       const accounts = await storage.getSocialAccounts(userId);
       
@@ -158,10 +256,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Generate report
-  app.post("/api/reports/generate", async (req, res) => {
+  app.post("/api/reports/generate", AuthService.verifyAuth, async (req, res) => {
     try {
       const { reportType, dateRange } = req.body;
-      const userId = 1; // Demo user ID
+      const userId = req.user?.profile?.id;
+      if (!userId) {
+        return res.status(400).json({ error: "User not found" });
+      }
       
       // Generate comprehensive report using ReportService
       const report = await ReportService.generateReport(userId, reportType, dateRange);
@@ -174,7 +275,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Export report
-  app.get("/api/reports/:id/export", async (req, res) => {
+  app.get("/api/reports/:id/export", AuthService.verifyAuth, async (req, res) => {
     try {
       const reportId = parseInt(req.params.id);
       const format = req.query.format as string || 'json';
@@ -214,9 +315,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get reports
-  app.get("/api/reports", async (req, res) => {
+  app.get("/api/reports", AuthService.verifyAuth, async (req, res) => {
     try {
-      const userId = 1; // Demo user ID
+      const userId = req.user?.profile?.id;
+      if (!userId) {
+        return res.status(400).json({ error: "User not found" });
+      }
       const reports = await storage.getReports(userId);
       res.json(reports);
     } catch (error) {
@@ -226,9 +330,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // User settings routes
-  app.get("/api/user/settings", async (req, res) => {
+  app.get("/api/user/settings", AuthService.verifyAuth, async (req, res) => {
     try {
-      const userId = 1; // Demo user ID
+      const userId = req.user?.profile?.id;
+      if (!userId) {
+        return res.status(400).json({ error: "User not found" });
+      }
       const user = await storage.getUser(userId);
       
       if (!user) {
@@ -247,9 +354,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/user/settings", async (req, res) => {
+  app.put("/api/user/settings", AuthService.verifyAuth, async (req, res) => {
     try {
-      const userId = 1; // Demo user ID
+      const userId = req.user?.profile?.id;
+      if (!userId) {
+        return res.status(400).json({ error: "User not found" });
+      }
       const updates = req.body;
       
       const user = await storage.updateUser(userId, updates);
@@ -265,9 +375,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Social accounts routes
-  app.get("/api/social-accounts", async (req, res) => {
+  app.get("/api/social-accounts", AuthService.verifyAuth, async (req, res) => {
     try {
-      const userId = 1; // Demo user ID
+      const userId = req.user?.profile?.id;
+      if (!userId) {
+        return res.status(400).json({ error: "User not found" });
+      }
       const accounts = await storage.getSocialAccounts(userId);
       res.json(accounts);
     } catch (error) {
@@ -276,7 +389,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/social-accounts/:id/sync", async (req, res) => {
+  app.post("/api/social-accounts/:id/sync", AuthService.verifyAuth, async (req, res) => {
     try {
       const accountId = parseInt(req.params.id);
       
@@ -292,7 +405,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/social-accounts/:id", async (req, res) => {
+  app.delete("/api/social-accounts/:id", AuthService.verifyAuth, async (req, res) => {
     try {
       const accountId = parseInt(req.params.id);
       
@@ -402,7 +515,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
     // Add route to manually refresh tokens
-    app.post("/api/social-accounts/:id/refresh-token", async (req, res) => {
+    app.post("/api/social-accounts/:id/refresh-token", AuthService.verifyAuth, async (req, res) => {
     try {
       const accountId = parseInt(req.params.id);
       const accounts = await storage.getSocialAccounts(1); // Demo user
